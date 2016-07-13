@@ -45,11 +45,11 @@
 /***/ function(module, exports, __webpack_require__) {
 
 	const Game = __webpack_require__(1);
-	const GameView = __webpack_require__(2);
+	const GameView = __webpack_require__(5);
 	
 	window.addEventListener('DOMContentLoaded', function () {
 	  const gameHeight = window.innerHeight - 50;
-	  const canvas = document.getElementById('worm-canvas');
+	  const canvas = document.getElementById('game-canvas');
 	  canvas.width = gameHeight;
 	  canvas.height = gameHeight;
 	
@@ -68,9 +68,9 @@
 /* 1 */
 /***/ function(module, exports, __webpack_require__) {
 
-	const Worm = __webpack_require__(3);
-	const Apple = __webpack_require__(5);
-	const Util = __webpack_require__(4);
+	const Worm = __webpack_require__(2);
+	const Apple = __webpack_require__(4);
+	const Locations = __webpack_require__(3);
 	const Images = __webpack_require__(6);
 	
 	const Game = function (size) {
@@ -78,7 +78,7 @@
 	  this.wormRadius = this.size / Game.WORM_SCALE;
 	  this.appleRadius = this.size / Game.APPLE_SCALE;
 	  this.keysPressed = [];
-	  this.bgImage = Images.generateBackground(this.size, Game.BORDER_WIDTH);
+	  this.dirtImage = Images.generateDirtImage(this.size, Game.BORDER_WIDTH);
 	  this.reset();
 	};
 	
@@ -108,9 +108,8 @@
 	
 	  // check if worm is off board
 	  const center = [this.size / 2, this.size / 2];
-	  let dist = Util.distance(this.worm.head(), center) + this.worm.radius;
+	  let dist = Locations.distance(this.worm.head(), center) + this.worm.radius;
 	  if (dist > (this.size / 2) - Game.BORDER_WIDTH) {
-	    this.state = 'GAME_OVER';
 	    return;
 	  }
 	
@@ -121,7 +120,7 @@
 	  }
 	
 	  // check for worm-apple collision
-	  dist = Util.distance(this.worm.head(), this.apple.location);
+	  dist = Locations.distance(this.worm.head(), this.apple.location);
 	  if (dist < this.worm.radius + this.apple.radius) {
 	    this.worm.grow();
 	    this._resetApple();
@@ -135,9 +134,9 @@
 	  const radius = ((this.size - Game.BORDER_WIDTH) / 2) - this.appleRadius;
 	  do {
 	    if (this.apple) {
-	      this.apple.location = Util.randomLocation(this.size / 2, radius);
+	      this.apple.location = Locations.randomLocation(this.size / 2, radius);
 	    } else {
-	      this.apple = new Apple(Util.randomLocation(this.size / 2, radius), this.appleRadius);
+	      this.apple = new Apple(Locations.randomLocation(this.size / 2, radius), this.appleRadius);
 	    }
 	  } while (this.worm.collidedWith(this.apple.location, this.appleRadius));
 	};
@@ -156,7 +155,7 @@
 	  ctx.clearRect(0, 0, this.size, this.size);
 	
 	  // draw background circle
-	  ctx.drawImage(this.bgImage, 0, 0);
+	  ctx.drawImage(this.dirtImage, 0, 0);
 	
 	  this.worm.draw(ctx);
 	  this.apple.draw(ctx);
@@ -232,96 +231,46 @@
 
 /***/ },
 /* 2 */
-/***/ function(module, exports) {
-
-	const GameView = function (game, ctx) {
-	  this.ctx = ctx;
-	  this.game = game;
-	};
-	
-	GameView.prototype.bindKeyHandlers = function () {
-	  const game = this.game;
-	  window.addEventListener('keydown', game.handleKeyDown.bind(game));
-	  window.addEventListener('keyup', game.handleKeyUp.bind(game));
-	  const canvas = document.getElementById('worm-canvas');
-	  canvas.addEventListener('click', game.handleClick.bind(game));
-	
-	  const restart = document.getElementById('restart-button');
-	  restart.addEventListener('click', game.reset.bind(game));
-	  const pause = document.getElementById('pause-button');
-	  pause.addEventListener('click', game.togglePause.bind(game));
-	};
-	
-	GameView.prototype.start = function () {
-	  this.bindKeyHandlers();
-	  this.lastTime = 0;
-	  // start the animation
-	  requestAnimationFrame(this.animate.bind(this));
-	};
-	
-	const NORMAL_FRAME_TIME_DELTA = 1000 / 60;
-	GameView.prototype.animate = function (time) {
-	  const timeDelta = (time - this.lastTime) / NORMAL_FRAME_TIME_DELTA;
-	
-	  this.game.step(timeDelta);
-	  this.game.draw(this.ctx);
-	  this.lastTime = time;
-	
-	  // every call to animate requests causes another call to animate
-	  requestAnimationFrame(this.animate.bind(this));
-	};
-	
-	module.exports = GameView;
-
-
-/***/ },
-/* 3 */
 /***/ function(module, exports, __webpack_require__) {
 
-	const Util = __webpack_require__(4);
+	const Locations = __webpack_require__(3);
 	
-	const Worm = function (location, radius) {
+	function Worm (location, radius) {
 	  this.radius = radius;
 	  this.links = [location];
 	  this.direction = 0;
-	  this.alpha = 0;
-	  this.growing = Worm.INITIAL_LENGTH - 1;
+	  this.alpha = 0; // angular acceleration
+	  this.growing = Worm.INITIAL_LENGTH - 1; // number of links to grow
+	
 	  this.swiveling = true;
 	  this.swivelCount = 0;
-	};
+	}
 	
+	// physical properties
 	Worm.SPEED = 2;
-	Worm.SWIVEL_PERIOD = 8;
-	Worm.COLOR = '#ff33cc';
-	Worm.BORDER_WIDTH = 2;
 	Worm.LEAN_ALPHA = Math.PI / 36;
 	Worm.INITIAL_LENGTH = 10;
 	Worm.GROW_LENGTH = 30;
+	Worm.SWIVEL_PERIOD = 8;
 	
-	Worm.prototype.head = function () {
-	  return this.links[0];
-	};
+	// astetic properties
+	Worm.COLOR = '#ff33cc';
+	Worm.BORDER_WIDTH = 2;
+	
+	Worm.prototype.length = function () { return this.links.length; };
+	Worm.prototype.head = function () { return this.links[0]; };
+	Worm.prototype.tail = function () { return this.links[this.length - 1]; };
 	
 	Worm.prototype.step = function (timeDelta) {
 	  // change direction
 	  if (this.swiveling) {
-	    if (this.swivelCount < 0) {
-	      this.direction += Worm.LEAN_ALPHA;
-	    } else {
-	      this.direction -= Worm.LEAN_ALPHA;
-	    }
-	
-	    this.swivelCount++;
-	    if (this.swivelCount >= Worm.SWIVEL_PERIOD) {
-	       this.swivelCount = -Worm.SWIVEL_PERIOD;
-	    }
+	    this.swivel();
 	  } else {
 	    this.direction += this.alpha;
 	  }
 	
 	  // advance in direction
-	  const head = this.links[0];
-	  const newHead = Util.advance(head, this.direction, Worm.SPEED, timeDelta);
+	  const newHead = Locations.advance(this.head(), this.direction, Worm.SPEED, timeDelta);
 	  this.links.unshift(newHead);
 	
 	  // drop tail or grow
@@ -332,31 +281,40 @@
 	  }
 	};
 	
+	Worm.prototype.swivel = function () {
+	  if (this.swivelCount < 0) {
+	    this.direction += Worm.LEAN_ALPHA;
+	  } else {
+	    this.direction -= Worm.LEAN_ALPHA;
+	  }
+	
+	  this.swivelCount++;
+	  if (this.swivelCount >= Worm.SWIVEL_PERIOD) {
+	     this.swivelCount = -Worm.SWIVEL_PERIOD;
+	  }
+	};
+	
 	Worm.prototype.draw = function (ctx) {
+	  // draw circle for head and tail
 	  ctx.fillStyle = Worm.COLOR;
 	  ctx.strokeStyle = '#000000';
 	  ctx.lineWidth = Worm.BORDER_WIDTH;
-	
-	  // draw circle for head and tail
-	  const head = this.links[0];
 	  ctx.beginPath();
-	  ctx.arc(head[0], head[1], this.radius, 0, 2 * Math.PI);
+	  ctx.arc(this.head()[0], this.head()[1], this.radius, 0, 2 * Math.PI);
 	  ctx.fill();
 	  ctx.stroke();
 	  ctx.closePath();
-	  const tail = this.links[this.links.length - 1];
 	  ctx.beginPath();
-	  ctx.arc(tail[0], tail[1], this.radius, 0, 2 * Math.PI);
+	  ctx.arc(this.tail()[0], this.tail()[1], this.radius, 0, 2 * Math.PI);
 	  ctx.fill();
 	  ctx.stroke();
 	  ctx.closePath();
 	
 	  // draw body
 	  ctx.beginPath();
-	  ctx.moveTo(head[0], head[1]);
-	  for (let i = 1; i < this.links.length; i++) {
-	    const link = this.links[i];
-	    ctx.lineTo(link[0], link[1]);
+	  ctx.moveTo(this.head()[0], this.head()[1]);
+	  for (let i = 1; i < this.length(); i++) {
+	    ctx.lineTo(this.links[i][0], this.links[i][1]);
 	  }
 	  ctx.strokeStyle = '#000000';
 	  ctx.lineWidth = this.radius * 2 + Worm.BORDER_WIDTH;
@@ -364,14 +322,13 @@
 	  ctx.closePath();
 	
 	  // fill body
-	  const adjustedHead = Util.advance(head, this.direction, 1, 1);
-	  const tailDirection = Util.direction(this.links[this.links.length - 2], tail);
-	  const adjustedTail = Util.advance(tail, tailDirection, 1, 1);
+	  const adjustedHead = Locations.advance(this.head(), this.direction, 1, 1);
+	  const tailDirection = Locations.direction(this.links[this.length() - 2], this.tail());
+	  const adjustedTail = Locations.advance(this.tail(), tailDirection, 1, 1);
 	  ctx.beginPath();
 	  ctx.moveTo(adjustedHead[0], adjustedHead[1]);
-	  for (let i = 1; i < this.links.length - 1; i++) {
-	    const link = this.links[i];
-	    ctx.lineTo(link[0], link[1]);
+	  for (let i = 1; i < this.length() - 1; i++) {
+	    ctx.lineTo(this.links[i][0], this.links[i][1]);
 	  }
 	  ctx.lineTo(adjustedTail[0], adjustedTail[1]);
 	  ctx.strokeStyle = Worm.COLOR;
@@ -382,7 +339,7 @@
 	
 	Worm.prototype.collidedWith = function (location, radius) {
 	  for (let i = 0; i < this.links.length; i++) {
-	    const dist = Util.distance(this.links[i], location);
+	    const dist = Locations.distance(this.links[i], location);
 	    if (dist < this.radius + radius) {
 	      return true;
 	    }
@@ -394,7 +351,7 @@
 	  const offset = Math.floor(this.radius / Worm.SPEED) * 3;
 	  const head = this.head();
 	  for (let i = offset; i < this.links.length; i++) {
-	    const dist = Util.distance(this.links[i], head);
+	    const dist = Locations.distance(this.links[i], head);
 	    if (dist < this.radius * 2) {
 	      return true;
 	    }
@@ -430,7 +387,7 @@
 
 
 /***/ },
-/* 4 */
+/* 3 */
 /***/ function(module, exports) {
 
 	module.exports = {
@@ -459,7 +416,7 @@
 
 
 /***/ },
-/* 5 */
+/* 4 */
 /***/ function(module, exports) {
 
 	const Apple = function (location, radius) {
@@ -499,10 +456,54 @@
 
 
 /***/ },
+/* 5 */
+/***/ function(module, exports) {
+
+	const GameView = function (game, ctx) {
+	  this.ctx = ctx;
+	  this.game = game;
+	};
+	
+	GameView.prototype.bindKeyHandlers = function () {
+	  const game = this.game;
+	  window.addEventListener('keydown', game.handleKeyDown.bind(game));
+	  window.addEventListener('keyup', game.handleKeyUp.bind(game));
+	  const canvas = document.getElementById('game-canvas');
+	  canvas.addEventListener('click', game.handleClick.bind(game));
+	
+	  const restart = document.getElementById('restart-button');
+	  restart.addEventListener('click', game.reset.bind(game));
+	  const pause = document.getElementById('pause-button');
+	  pause.addEventListener('click', game.togglePause.bind(game));
+	};
+	
+	GameView.prototype.start = function () {
+	  this.bindKeyHandlers();
+	  this.lastTime = 0;
+	  // start the animation
+	  requestAnimationFrame(this.animate.bind(this));
+	};
+	
+	const NORMAL_FRAME_TIME_DELTA = 1000 / 60;
+	GameView.prototype.animate = function (time) {
+	  const timeDelta = (time - this.lastTime) / NORMAL_FRAME_TIME_DELTA;
+	
+	  this.game.step(timeDelta);
+	  this.game.draw(this.ctx);
+	  this.lastTime = time;
+	
+	  // every call to animate requests causes another call to animate
+	  requestAnimationFrame(this.animate.bind(this));
+	};
+	
+	module.exports = GameView;
+
+
+/***/ },
 /* 6 */
 /***/ function(module, exports, __webpack_require__) {
 
-	const Util = __webpack_require__(4);
+	const Locations = __webpack_require__(3);
 	
 	const Images = {};
 	Images.PEBBLE_COLORS = ['#E69849', '#EB9034', '#F0B57A', '#F5AF69', '#DE9B57'];
@@ -510,7 +511,7 @@
 	Images.DIRT_COLOR = "#F7A654";
 	
 	module.exports = {
-	  generateBackground (size, borderWidth) {
+	  generateDirtImage (size, borderWidth) {
 	    const background = document.createElement("canvas");
 	    background.width = size;
 	    background.height = size;
@@ -529,7 +530,7 @@
 	    for (let i = 0; i < 30; i++) {
 	      const randomRadius = Math.random() * 4 + 2;
 	      const radius = ((size - borderWidth) / 2) - randomRadius;
-	      const randomLocation = Util.randomLocation(size / 2, radius);
+	      const randomLocation = Locations.randomLocation(size / 2, radius);
 	      ctx.beginPath();
 	      const k = Math.floor(Math.random() * Images.PEBBLE_COLORS.length);
 	      ctx.fillStyle = Images.PEBBLE_COLORS[k];
