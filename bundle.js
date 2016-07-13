@@ -46,20 +46,30 @@
 
 	const Game = __webpack_require__(1);
 	const GameView = __webpack_require__(5);
+	const Images = __webpack_require__(6);
 	
 	window.addEventListener('DOMContentLoaded', function () {
+	  // init game canvas
+	  const gameCanvas = document.getElementById('game-canvas');
 	  const gameHeight = window.innerHeight - 50;
-	  const canvas = document.getElementById('game-canvas');
-	  canvas.width = gameHeight;
-	  canvas.height = gameHeight;
+	  gameCanvas.width = gameHeight;
+	  gameCanvas.height = gameHeight;
 	
+	  // init bg canvas
+	  const bgCanvas = document.getElementById('bg-canvas');
+	  bgCanvas.width = window.innerWidth;
+	  bgCanvas.height = window.innerHeight;
+	  Images.drawGrassImage(bgCanvas);
+	
+	  // init panes
 	  const leftPane = document.getElementsByClassName('left-pane')[0];
 	  leftPane.style.height = `${gameHeight}px`;
 	  const rightPane = document.getElementsByClassName('right-pane')[0];
 	  rightPane.style.height = `${gameHeight}px`;
 	
-	  const ctx = canvas.getContext("2d");
-	  const game = new Game(canvas.width);
+	  // init game
+	  const ctx = gameCanvas.getContext("2d");
+	  const game = new Game(gameCanvas.width);
 	  new GameView(game, ctx).start();
 	});
 
@@ -108,8 +118,9 @@
 	
 	  // check if worm is off board
 	  const center = [this.size / 2, this.size / 2];
-	  let dist = Locations.distance(this.worm.head(), center) + this.worm.radius;
+	  let dist = Locations.distance(this.worm.head().location, center) + this.worm.radius;
 	  if (dist > (this.size / 2) - Game.BORDER_WIDTH) {
+	    this.state = 'GAME_OVER';
 	    return;
 	  }
 	
@@ -120,7 +131,7 @@
 	  }
 	
 	  // check for worm-apple collision
-	  dist = Locations.distance(this.worm.head(), this.apple.location);
+	  dist = Locations.distance(this.worm.head().location, this.apple.location);
 	  if (dist < this.worm.radius + this.apple.radius) {
 	    this.worm.grow();
 	    this._resetApple();
@@ -234,17 +245,20 @@
 /***/ function(module, exports, __webpack_require__) {
 
 	const Locations = __webpack_require__(3);
+	const Link = __webpack_require__(7);
 	
-	function Worm (location, radius) {
+	const Worm = function (location, radius) {
 	  this.radius = radius;
-	  this.links = [location];
+	  this.links = [new Link(location, this.radius)];
 	  this.direction = 0;
 	  this.alpha = 0; // angular acceleration
 	  this.growing = Worm.INITIAL_LENGTH - 1; // number of links to grow
 	
 	  this.swiveling = true;
 	  this.swivelCount = 0;
-	}
+	
+	  this.swallowing = false;
+	};
 	
 	// physical properties
 	Worm.SPEED = 2;
@@ -259,18 +273,20 @@
 	
 	Worm.prototype.length = function () { return this.links.length; };
 	Worm.prototype.head = function () { return this.links[0]; };
-	Worm.prototype.tail = function () { return this.links[this.length - 1]; };
+	Worm.prototype.tail = function () { return this.links[this.length() - 1]; };
 	
 	Worm.prototype.step = function (timeDelta) {
 	  // change direction
 	  if (this.swiveling) {
-	    this.swivel();
+	    this.swivelStep();
 	  } else {
 	    this.direction += this.alpha;
 	  }
 	
 	  // advance in direction
-	  const newHead = Locations.advance(this.head(), this.direction, Worm.SPEED, timeDelta);
+	  const oldLocation = this.head().location;
+	  const newLocation = Locations.advance(oldLocation, this.direction, Worm.SPEED, timeDelta);
+	  const newHead = new Link(newLocation, this.radius);
 	  this.links.unshift(newHead);
 	
 	  // drop tail or grow
@@ -281,7 +297,7 @@
 	  }
 	};
 	
-	Worm.prototype.swivel = function () {
+	Worm.prototype.swivelStep = function () {
 	  if (this.swivelCount < 0) {
 	    this.direction += Worm.LEAN_ALPHA;
 	  } else {
@@ -300,21 +316,21 @@
 	  ctx.strokeStyle = '#000000';
 	  ctx.lineWidth = Worm.BORDER_WIDTH;
 	  ctx.beginPath();
-	  ctx.arc(this.head()[0], this.head()[1], this.radius, 0, 2 * Math.PI);
+	  ctx.arc(this.head().x(), this.head().y(), this.radius, 0, 2 * Math.PI);
 	  ctx.fill();
 	  ctx.stroke();
 	  ctx.closePath();
 	  ctx.beginPath();
-	  ctx.arc(this.tail()[0], this.tail()[1], this.radius, 0, 2 * Math.PI);
+	  ctx.arc(this.tail().x(), this.tail().y(), this.radius, 0, 2 * Math.PI);
 	  ctx.fill();
 	  ctx.stroke();
 	  ctx.closePath();
 	
 	  // draw body
 	  ctx.beginPath();
-	  ctx.moveTo(this.head()[0], this.head()[1]);
+	  ctx.moveTo(this.head().x(), this.head().y());
 	  for (let i = 1; i < this.length(); i++) {
-	    ctx.lineTo(this.links[i][0], this.links[i][1]);
+	    ctx.lineTo(this.links[i].x(), this.links[i].y());
 	  }
 	  ctx.strokeStyle = '#000000';
 	  ctx.lineWidth = this.radius * 2 + Worm.BORDER_WIDTH;
@@ -322,13 +338,14 @@
 	  ctx.closePath();
 	
 	  // fill body
-	  const adjustedHead = Locations.advance(this.head(), this.direction, 1, 1);
-	  const tailDirection = Locations.direction(this.links[this.length() - 2], this.tail());
-	  const adjustedTail = Locations.advance(this.tail(), tailDirection, 1, 1);
+	  const adjustedHead = Locations.advance(this.head().location, this.direction, 1, 1);
+	  const secondTail = this.links[this.length() - 2];
+	  const tailDirection = Locations.direction(secondTail.location, this.tail().location);
+	  const adjustedTail = Locations.advance(this.tail().location, tailDirection, 1, 1);
 	  ctx.beginPath();
 	  ctx.moveTo(adjustedHead[0], adjustedHead[1]);
 	  for (let i = 1; i < this.length() - 1; i++) {
-	    ctx.lineTo(this.links[i][0], this.links[i][1]);
+	    ctx.lineTo(this.links[i].x(), this.links[i].y());
 	  }
 	  ctx.lineTo(adjustedTail[0], adjustedTail[1]);
 	  ctx.strokeStyle = Worm.COLOR;
@@ -338,8 +355,8 @@
 	};
 	
 	Worm.prototype.collidedWith = function (location, radius) {
-	  for (let i = 0; i < this.links.length; i++) {
-	    const dist = Locations.distance(this.links[i], location);
+	  for (let i = 0; i < this.length(); i++) {
+	    const dist = Locations.distance(this.links[i].location, location);
 	    if (dist < this.radius + radius) {
 	      return true;
 	    }
@@ -350,8 +367,8 @@
 	Worm.prototype.collidedWithSelf = function () {
 	  const offset = Math.floor(this.radius / Worm.SPEED) * 3;
 	  const head = this.head();
-	  for (let i = offset; i < this.links.length; i++) {
-	    const dist = Locations.distance(this.links[i], head);
+	  for (let i = offset; i < this.length(); i++) {
+	    const dist = Locations.distance(this.links[i].location, head.location);
 	    if (dist < this.radius * 2) {
 	      return true;
 	    }
@@ -398,6 +415,12 @@
 	    const dy = Math.sin(theta) * radius;
 	    return [dx + center, dy + center];
 	  },
+	  randomPoint (width, height) {
+	    return [Math.random() * width, Math.random() * height];
+	  },
+	  randomDirection () {
+	    return Math.random() * Math.PI * 2;
+	  },
 	  advance (location, direction, distance, delta) {
 	    const c = distance * delta;
 	    const x = location[0] + (Math.cos(direction) * c);
@@ -417,39 +440,27 @@
 
 /***/ },
 /* 4 */
-/***/ function(module, exports) {
+/***/ function(module, exports, __webpack_require__) {
 
+	const Images = __webpack_require__(6);
+	
 	const Apple = function (location, radius) {
 	  this.radius = radius;
 	  this.location = location;
-	  this.image = new Image();
-	  this.imageLoaded = false;
-	  this.image.onload = () => {
-	    this.imageLoaded = true;
-	  };
-	  this.image.src = 'assets/apple.png';
-	  this.image.width = this.radius * 2;
-	  this.image.height = this.radius * 2;
+	  Images.loadAppleImage(appleImage => {
+	    this.image = appleImage;
+	  });
 	};
 	
 	Apple.COLOR = '#ff0000';
 	Apple.BORDER_WIDTH = 2;
 	
 	Apple.prototype.draw = function (ctx) {
-	  if (!this.imageLoaded) { return; }
+	  if (!this.image) { return; }
 	  const x = this.location[0] - this.radius * 3 / 2;
 	  const y = this.location[1] - this.radius * 3 / 2;
 	  const size = this.radius * 3;
 	  ctx.drawImage(this.image, x, y, size, size);
-	  // ctx.fillStyle = Apple.COLOR;
-	  // ctx.strokeStyle = '#000000';
-	  // ctx.lineWidth = Apple.BORDER_WIDTH;
-	  //
-	  // ctx.beginPath();
-	  // ctx.arc(this.location[0], this.location[1], this.radius, 0, 2 * Math.PI);
-	  // ctx.fill();
-	  // ctx.stroke();
-	  // ctx.closePath();
 	};
 	
 	module.exports = Apple;
@@ -505,19 +516,20 @@
 
 	const Locations = __webpack_require__(3);
 	
-	const Images = {};
-	Images.PEBBLE_COLORS = ['#E69849', '#EB9034', '#F0B57A', '#F5AF69', '#DE9B57'];
-	Images.PEBBLE_BORDER_COLOR = '#6E3C0A';
-	Images.DIRT_COLOR = "#F7A654";
+	const Images = {
+	  PEBBLE_COLORS: ['#E69849', '#EB9034', '#F0B57A', '#F5AF69', '#DE9B57'],
+	  PEBBLE_BORDER_COLOR: '#6E3C0A',
+	  DIRT_COLOR: "#F7A654"
+	};
 	
 	module.exports = {
 	  generateDirtImage (size, borderWidth) {
-	    const background = document.createElement("canvas");
-	    background.width = size;
-	    background.height = size;
-	    const ctx = background.getContext("2d");
+	    const dirtImage = document.createElement("canvas");
+	    dirtImage.width = size;
+	    dirtImage.height = size;
+	    const ctx = dirtImage.getContext("2d");
 	
-	    // draw background circle
+	    // draw dirt circle
 	    ctx.beginPath();
 	    ctx.fillStyle = Images.DIRT_COLOR;
 	    ctx.strokeStyle = '#000000';
@@ -527,7 +539,7 @@
 	    ctx.stroke();
 	    ctx.closePath();
 	
-	    for (let i = 0; i < 30; i++) {
+	    for (let i = 0; i < 50; i++) {
 	      const randomRadius = Math.random() * 4 + 2;
 	      const radius = ((size - borderWidth) / 2) - randomRadius;
 	      const randomLocation = Locations.randomLocation(size / 2, radius);
@@ -541,9 +553,45 @@
 	      ctx.stroke();
 	      ctx.closePath();
 	    }
-	    return background;
+	    return dirtImage;
+	  },
+	  drawGrassImage (canvas) {
+	    const ctx = canvas.getContext("2d");
+	    ctx.strokeStyle = '#006600';
+	    ctx.lineWidth = 4;
+	    for (let i = 0; i < 10000; i++) {
+	      ctx.beginPath();
+	      const p1 = Locations.randomPoint(canvas.width, canvas.height);
+	      const p2 = Locations.advance(p1, Locations.randomDirection(), 25, 1);
+	      ctx.moveTo(...p1);
+	      ctx.lineTo(...p2);
+	      ctx.stroke();
+	      ctx.closePath();
+	    }
+	  },
+	  loadAppleImage (callback) {
+	    const appleImage = new Image();
+	    appleImage.onload = function () {
+	      callback(appleImage);
+	    };
+	    appleImage.src = 'assets/apple.png';
 	  }
 	};
+
+
+/***/ },
+/* 7 */
+/***/ function(module, exports) {
+
+	const Link = function (location, radius) {
+	  this.location = location;
+	  this.radius = radius;
+	};
+	
+	Link.prototype.x = function () { return this.location[0]; };
+	Link.prototype.y = function () { return this.location[1]; };
+	
+	module.exports = Link;
 
 
 /***/ }
