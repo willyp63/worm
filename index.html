@@ -3,7 +3,9 @@
   <head>
     <meta charset="utf-8">
     <title>Worm</title>
-    <link rel="stylesheet" type="text/css" href="lib/app.css">
+    <link href='https://fonts.googleapis.com/css?family=Permanent+Marker' rel='stylesheet' type='text/css'>
+    <link href='https://fonts.googleapis.com/css?family=Architects+Daughter' rel='stylesheet' type='text/css'>
+    <link rel="stylesheet" type="text/css" href="assets/css/app.css">
     <script type="text/javascript" src="./bundle.js"></script>
   </head>
   <body>
@@ -13,22 +15,37 @@
         <h1>Worm</h1>
       </div>
       <div class='instruction-pane'>
-        <ul>
-          <li>A: turn left</li>
-          <li>D: turn right</li>
-          <li>click to pause</li>
-        </ul>
+        <div class='instructions'>
+          <h1>Instructions</h1>
+          <ul>
+            <li>A: turn left</li>
+            <li>D: turn right</li>
+            <li>click to pause</li>
+          </ul>
+        </div>
+        <div class="tag-line">
+          <p>How big can</p>
+          <p>you grow?</p>
+        </div>
       </div>
     </div>
-    <canvas id="game-canvas"></canvas>
+    <div class='game-view'>
+      <canvas id="game-canvas"></canvas>
+      <div id='game-popup' class='hidden'>
+        <div>
+          <p id='game-popup-text'></p>
+          <p id='game-popup-subtext'></p>
+        </div>
+      </div>
+    </div>
     <div class='right-pane'>
       <div class='score-pane'>
-        <h1>Score: </h1>
+        <h1 id='score'>Score: </h1>
       </div>
-      <ul class='game-buttons'>
-        <li id='restart-button'>Restart</li>
-        <li id='pause-button'>Pause</li>
-        <li>Set Difficulty</li>
+      <ul class='my-links'>
+        <li><img src='assets/images/github.png' alt='github'/>Github</li>
+        <li><img src='assets/images/linkedin.png' alt='linkedin'/>LinkedIn</li>
+        <li><img src='assets/images/home.png' alt='home'/>Portfolio</li>
       </ul>
   </body>
 </html>
