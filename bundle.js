@@ -88,6 +88,7 @@
 	const Apple = __webpack_require__(5);
 	const Locations = __webpack_require__(3);
 	const Images = __webpack_require__(6);
+	const DOM = __webpack_require__(8);
 	
 	const Game = function (size) {
 	  this.size = size;
@@ -95,55 +96,25 @@
 	  this.appleRadius = this.size / Game.APPLE_SCALE;
 	  this.keysPressed = [];
 	  this.dirtImage = Images.generateDirtImage(this.size, Game.BORDER_WIDTH);
-	  this.reset();
+	  this.score = 0;
+	  this.state = 'NEW_GAME';
 	};
 	
-	Game.FONT = "64px Arial";
 	Game.BORDER_WIDTH = 2;
-	
 	Game.WORM_SCALE = 40;
 	Game.APPLE_SCALE = 60;
-	
-	Game.prototype.reset = function () {
-	  this.worm = new Worm([this.size / 2, this.size / 2], this.wormRadius);
-	  this._resetApple();
-	  this.score = 0;
-	  this.state = 'PLAYING';
-	};
-	
-	Game.prototype.togglePause = function () {
-	  if (this.state === 'PLAYING') {
-	    this.state = 'PAUSED';
-	  } else if (this.state === 'PAUSED') {
-	    this.state = 'PLAYING';
-	  }
-	};
 	
 	Game.prototype.step = function (timeDelta) {
 	  if (this.state !== 'PLAYING') { return; }
 	
-	  // update score
-	  const scoreEl = document.getElementById('score');
-	  scoreEl.innerHTML = `Score: ${this.worm.length()}`;
+	  DOM.setScore(this.worm.length());
 	
-	  // check if worm is off board
-	  const center = [this.size / 2, this.size / 2];
-	  let dist = Locations.distance(this.worm.head().location, center);
-	  dist += this.worm.head().radius;
-	  if (dist > (this.size / 2) - Game.BORDER_WIDTH) {
+	  if (this.worm.collidedWithSelf() || this.offBoard()) {
 	    this.state = 'GAME_OVER';
 	    return;
 	  }
 	
-	  // check for self collision
-	  if (this.worm.collidedWithSelf()) {
-	    this.state = 'GAME_OVER';
-	    return;
-	  }
-	
-	  // check for worm-apple collision
-	  dist = Locations.distance(this.worm.head().location, this.apple.location);
-	  if (dist < this.worm.head().radius + this.apple.radius) {
+	  if (this.wormAppleCollision()) {
 	    this.worm.grow();
 	    this.worm.swallow();
 	    this._resetApple();
@@ -153,56 +124,56 @@
 	  this.worm.step(timeDelta);
 	};
 	
-	Game.prototype._resetApple = function () {
-	  const radius = ((this.size - Game.BORDER_WIDTH) / 2) - (this.appleRadius * 2);
-	  do {
-	    if (this.apple) {
-	      this.apple.location = Locations.randomLocation(this.size / 2, radius);
-	    } else {
-	      this.apple = new Apple(Locations.randomLocation(this.size / 2, radius), this.appleRadius);
-	    }
-	  } while (this.worm.collidedWith(this.apple.location, this.appleRadius));
+	Game.prototype.offBoard = function () {
+	  const center = [this.size / 2, this.size / 2];
+	  let dist = Locations.distance(this.worm.head().location, center);
+	  dist += this.worm.head().radius;
+	  return (dist > (this.size / 2) - Game.BORDER_WIDTH);
+	};
+	
+	Game.prototype.wormAppleCollision = function () {
+	  const dist = Locations.distance(this.worm.head().location, this.apple.location);
+	  return (dist < this.worm.head().radius + this.apple.radius);
 	};
 	
 	Game.prototype.draw = function (ctx) {
-	  // draw game state label
-	  if (this.state === 'PAUSED') {
-	    const popup = document.getElementById('game-popup');
-	    popup.className = '';
-	    const popupText = document.getElementById('game-popup-text');
-	    popupText.innerHTML = 'PAUSED';
-	    const popupSubtext = document.getElementById('game-popup-subtext');
-	    popupSubtext.innerHTML = 'Click to resume';
-	    return;
-	  } else if (this.state === 'GAME_OVER') {
-	    const popup = document.getElementById('game-popup');
-	    popup.className = '';
-	    const popupText = document.getElementById('game-popup-text');
-	    popupText.innerHTML = 'GAME OVER';
-	    const popupSubtext = document.getElementById('game-popup-subtext');
-	    popupSubtext.innerHTML = 'Click to play again';
-	    return;
-	  } else {
-	    const popup = document.getElementById('game-popup');
-	    popup.className = 'hidden';
+	  switch (this.state) {
+	    case 'PAUSED':
+	      DOM.showPopUp('PAUSED', 'Click to resume');
+	      break;
+	    case 'GAME_OVER':
+	      DOM.showPopUp('GAME OVER', 'Click to play again');
+	      break;
+	    case 'NEW_GAME':
+	      DOM.showPopUp('NEW GAME', 'Click to start');
+	      ctx.drawImage(this.dirtImage, 0, 0);
+	      break;
+	    case 'PLAYING':
+	      DOM.hidePopUp();
+	      ctx.clearRect(0, 0, this.size, this.size);
+	      ctx.drawImage(this.dirtImage, 0, 0);
+	      this.apple.draw(ctx);
+	      this.worm.draw(ctx);
 	  }
-	
-	  // clear canvas
-	  ctx.clearRect(0, 0, this.size, this.size);
-	
-	  // draw background circle
-	  ctx.drawImage(this.dirtImage, 0, 0);
-	
-	  this.apple.draw(ctx);
-	  this.worm.draw(ctx);
 	};
 	
-	Game.prototype._drawCenteredText = function (ctx, text) {
-	  ctx.font = Game.FONT;
-	  ctx.fillStyle = '#000000';
-	  const x = (this.size - ctx.measureText(text).width) / 2;
-	  const y = this.size / 2;
-	  ctx.fillText(text, x, y);
+	Game.prototype._reset = function () {
+	  this.worm = new Worm([this.size / 2, this.size / 2], this.wormRadius);
+	  this._resetApple();
+	  this.score = 0;
+	  this.state = 'PLAYING';
+	};
+	
+	Game.prototype._resetApple = function () {
+	  const maxRadius = ((this.size - Game.BORDER_WIDTH) / 2) - (this.appleRadius * 2);
+	  do {
+	    const loc = Locations.randomLocation(this.size / 2, maxRadius);
+	    if (this.apple) {
+	      this.apple.location = loc;
+	    } else {
+	      this.apple = new Apple(loc, this.appleRadius);
+	    }
+	  } while (this.worm.collidedWith(this.apple.location, this.appleRadius));
 	};
 	
 	Game.prototype.handleKeyDown = function (e) {
@@ -257,31 +228,11 @@
 	    case 'PLAYING':
 	      this.state = 'PAUSED';
 	      break;
+	    case 'NEW_GAME':
 	    case 'GAME_OVER':
-	      this.flipBoard();
-	      this.reset();
-	      break;
+	      DOM.flipBoard();
+	      this._reset();
 	  }
-	};
-	
-	Game.prototype.flipBoard = function () {
-	  const backCanvas = document.getElementById('game-canvas-back');
-	  const canvas = document.getElementById('game-canvas');
-	  const backCtx = backCanvas.getContext("2d");
-	  backCtx.drawImage(canvas, 0, 0);
-	
-	  const gameBoard = document.getElementById('game-board');
-	  backCanvas.style.transform = 'rotateY( 0deg )';
-	  canvas.style.transform = 'rotateY( 180deg )';
-	  gameBoard.style.transition = 'transform 0.75s';
-	  gameBoard.className = 'flipped';
-	
-	  setTimeout(function () {
-	    gameBoard.style.transition = 'transform 0s';
-	    gameBoard.className = '';
-	    backCanvas.style.transform = 'rotateY( 180deg )';
-	    canvas.style.transform = 'rotateY( 0deg )';
-	  }, 1000);
 	};
 	
 	module.exports = Game;
@@ -721,23 +672,65 @@
 	GameView.prototype.start = function () {
 	  this.bindKeyHandlers();
 	  this.lastTime = 0;
-	  // start the animation
 	  requestAnimationFrame(this.animate.bind(this));
 	};
 	
 	const NORMAL_FRAME_TIME_DELTA = 1000 / 60;
 	GameView.prototype.animate = function (time) {
 	  const timeDelta = (time - this.lastTime) / NORMAL_FRAME_TIME_DELTA;
-	
 	  this.game.step(timeDelta);
 	  this.game.draw(this.ctx);
 	  this.lastTime = time;
-	
-	  // every call to animate requests causes another call to animate
 	  requestAnimationFrame(this.animate.bind(this));
 	};
 	
 	module.exports = GameView;
+
+
+/***/ },
+/* 8 */
+/***/ function(module, exports) {
+
+	module.exports = {
+	  flipBoard () {
+	    // copy front canvas to back
+	    const backCanvas = document.getElementById('game-canvas-back');
+	    const canvas = document.getElementById('game-canvas');
+	    const backCtx = backCanvas.getContext("2d");
+	    backCtx.drawImage(canvas, 0, 0);
+	
+	    // flip back to front
+	    const gameBoard = document.getElementById('game-board');
+	    backCanvas.style.transform = 'rotateY( 0deg )';
+	    canvas.style.transform = 'rotateY( 180deg )';
+	    gameBoard.style.transition = 'transform 0.75s';
+	    gameBoard.className = 'flipped';
+	
+	    // swap canvases back again
+	    setTimeout(function () {
+	      gameBoard.style.transition = 'transform 0s';
+	      gameBoard.className = '';
+	      backCanvas.style.transform = 'rotateY( 180deg )';
+	      canvas.style.transform = 'rotateY( 0deg )';
+	    }, 1000);
+	  },
+	  showPopUp (mainText, subText) {
+	    const popup = document.getElementById('game-popup');
+	    popup.className = '';
+	    const popupText = document.getElementById('game-popup-text');
+	    popupText.innerHTML = mainText;
+	    const popupSubtext = document.getElementById('game-popup-subtext');
+	    popupSubtext.innerHTML = subText;
+	  },
+	  hidePopUp () {
+	    const popup = document.getElementById('game-popup');
+	    popup.className = 'hidden';
+	  },
+	  setScore (score) {
+	    const scoreEl = document.getElementById('score');
+	    scoreEl.innerHTML = `Score: ${score}`;
+	  }
+	};
 
 
 /***/ }
