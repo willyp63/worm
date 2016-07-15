@@ -170,7 +170,7 @@
 	    const popup = document.getElementById('game-popup');
 	    popup.className = '';
 	    const popupText = document.getElementById('game-popup-text');
-	    popupText.innerHTML = 'PUASED';
+	    popupText.innerHTML = 'PAUSED';
 	    const popupSubtext = document.getElementById('game-popup-subtext');
 	    popupSubtext.innerHTML = 'Click to resume';
 	    return;
@@ -586,7 +586,7 @@
 	    return;
 	  }
 	  if (this.radius > minRadius) {
-	    this.radius -= 0.15;
+	    this.radius -= 0.05;
 	  }
 	  if (this.radius < minRadius) {
 	    this.radius = minRadius;
