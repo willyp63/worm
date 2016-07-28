@@ -91,13 +91,13 @@
 	const DOM = __webpack_require__(7);
 	
 	const Game = function (size) {
+	  this.state = 'NEW_GAME';
 	  this.size = size;
 	  this.wormRadius = this.size / Game.WORM_SCALE;
 	  this.appleRadius = this.size / Game.APPLE_SCALE;
 	  this.keysPressed = [];
 	  this.dirtImage = Images.generateDirtImage(this.size, Game.BORDER_WIDTH);
 	  this.score = 0;
-	  this.state = 'NEW_GAME';
 	};
 	
 	Game.BORDER_WIDTH = 2;
@@ -229,8 +229,6 @@
 	      this.state = 'PAUSED';
 	      break;
 	    case 'NEW_GAME':
-	    debugger
-	    break
 	    case 'GAME_OVER':
 	      DOM.flipBoard();
 	      this._reset();
