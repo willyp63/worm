@@ -91,13 +91,14 @@
 	const DOM = __webpack_require__(7);
 	
 	const Game = function (size) {
-	  this.state = 'NEW_GAME';
 	  this.size = size;
 	  this.wormRadius = this.size / Game.WORM_SCALE;
 	  this.appleRadius = this.size / Game.APPLE_SCALE;
 	  this.keysPressed = [];
 	  this.dirtImage = Images.generateDirtImage(this.size, Game.BORDER_WIDTH);
 	  this.score = 0;
+	  this.state = 'NEW_GAME';
+	  debugger
 	};
 	
 	Game.BORDER_WIDTH = 2;
@@ -137,6 +138,7 @@
 	};
 	
 	Game.prototype.draw = function (ctx) {
+	  debugger
 	  switch (this.state) {
 	    case 'PAUSED':
 	      DOM.showPopUp('PAUSED', 'Click to resume');
