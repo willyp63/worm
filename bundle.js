@@ -229,6 +229,8 @@
 	      this.state = 'PAUSED';
 	      break;
 	    case 'NEW_GAME':
+	    debugger
+	    break
 	    case 'GAME_OVER':
 	      DOM.flipBoard();
 	      this._reset();
