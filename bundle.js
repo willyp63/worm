@@ -207,6 +207,7 @@
 	};
 	
 	Game.prototype._updateWormState = function () {
+	  if (!this.worm) { return; }
 	  const a = (this.keysPressed.indexOf('a') >= 0);
 	  const d = (this.keysPressed.indexOf('d') >= 0);
 	  if (a && d) {
