@@ -138,7 +138,6 @@
 	};
 	
 	Game.prototype.draw = function (ctx) {
-	  debugger
 	  switch (this.state) {
 	    case 'PAUSED':
 	      DOM.showPopUp('PAUSED', 'Click to resume');
