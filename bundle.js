@@ -98,7 +98,6 @@
 	  this.dirtImage = Images.generateDirtImage(this.size, Game.BORDER_WIDTH);
 	  this.score = 0;
 	  this.state = 'NEW_GAME';
-	  debugger
 	};
 	
 	Game.BORDER_WIDTH = 2;
