@@ -45,7 +45,7 @@
 /***/ function(module, exports, __webpack_require__) {
 
 	const Game = __webpack_require__(1);
-	const GameView = __webpack_require__(7);
+	const GameView = __webpack_require__(8);
 	const Images = __webpack_require__(6);
 	
 	window.addEventListener('DOMContentLoaded', function () {
@@ -88,7 +88,7 @@
 	const Apple = __webpack_require__(5);
 	const Locations = __webpack_require__(3);
 	const Images = __webpack_require__(6);
-	const DOM = __webpack_require__(8);
+	const DOM = __webpack_require__(7);
 	
 	const Game = function (size) {
 	  this.size = size;
@@ -654,43 +654,6 @@
 /* 7 */
 /***/ function(module, exports) {
 
-	const GameView = function (game, ctx) {
-	  this.ctx = ctx;
-	  this.game = game;
-	};
-	
-	GameView.prototype.bindKeyHandlers = function () {
-	  const game = this.game;
-	  window.addEventListener('keydown', game.handleKeyDown.bind(game));
-	  window.addEventListener('keyup', game.handleKeyUp.bind(game));
-	  const canvas = document.getElementById('game-canvas');
-	  canvas.addEventListener('click', game.handleClick.bind(game));
-	  const popup = document.getElementById('game-popup');
-	  popup.addEventListener('click', game.handleClick.bind(game));
-	};
-	
-	GameView.prototype.start = function () {
-	  this.bindKeyHandlers();
-	  this.lastTime = 0;
-	  requestAnimationFrame(this.animate.bind(this));
-	};
-	
-	const NORMAL_FRAME_TIME_DELTA = 1000 / 60;
-	GameView.prototype.animate = function (time) {
-	  const timeDelta = (time - this.lastTime) / NORMAL_FRAME_TIME_DELTA;
-	  this.game.step(timeDelta);
-	  this.game.draw(this.ctx);
-	  this.lastTime = time;
-	  requestAnimationFrame(this.animate.bind(this));
-	};
-	
-	module.exports = GameView;
-
-
-/***/ },
-/* 8 */
-/***/ function(module, exports) {
-
 	module.exports = {
 	  flipBoard () {
 	    // copy front canvas to back
@@ -731,6 +694,43 @@
 	    scoreEl.innerHTML = `Score: ${score}`;
 	  }
 	};
+
+
+/***/ },
+/* 8 */
+/***/ function(module, exports) {
+
+	const GameView = function (game, ctx) {
+	  this.ctx = ctx;
+	  this.game = game;
+	};
+	
+	GameView.prototype.bindKeyHandlers = function () {
+	  const game = this.game;
+	  window.addEventListener('keydown', game.handleKeyDown.bind(game));
+	  window.addEventListener('keyup', game.handleKeyUp.bind(game));
+	  const canvas = document.getElementById('game-canvas');
+	  canvas.addEventListener('click', game.handleClick.bind(game));
+	  const popup = document.getElementById('game-popup');
+	  popup.addEventListener('click', game.handleClick.bind(game));
+	};
+	
+	GameView.prototype.start = function () {
+	  this.bindKeyHandlers();
+	  this.lastTime = 0;
+	  requestAnimationFrame(this.animate.bind(this));
+	};
+	
+	const NORMAL_FRAME_TIME_DELTA = 1000 / 60;
+	GameView.prototype.animate = function (time) {
+	  const timeDelta = (time - this.lastTime) / NORMAL_FRAME_TIME_DELTA;
+	  this.game.step(timeDelta);
+	  this.game.draw(this.ctx);
+	  this.lastTime = time;
+	  requestAnimationFrame(this.animate.bind(this));
+	};
+	
+	module.exports = GameView;
 
 
 /***/ }
